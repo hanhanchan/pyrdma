@@ -9,7 +9,7 @@ from src.common.buffer_attr import serialize, deserialize
 
 
 class SocketClient:
-    def __init__(self, name=c.NAME, addr=c.ADDR, port=c.PORT_INT, options=c.OPTIONS):
+    def __init__(self, name=c.NAME, addr=c.ADDR_CLIENT, port=c.PORT_INT, options=c.OPTIONS):
         self.name = name
         self.addr = addr
         self.port = port
@@ -72,7 +72,25 @@ class SocketClient:
         node.close()
         # done
         self._close()
-
+    #NFS read 
+    def new_pull_file(self, remote_file):
+        msg = self._connect_recv_msg() #begin, ready 
+        node = None
+        if msg == m.READY_MSG:
+            # use socket to exchange metadata of client
+            node = SocketNode(name=self.name)
+            server_metadata_attr = self._exchange_metadata(node)
+            # qp
+            node.qp2init().qp2rtr(server_metadata_attr).qp2rts() #qp gid
+            # exchange done, write message or push file to buffer
+            node.post_recv(node.recv_mr)
+            self.socket.sendall(m.SEND_FILE_MSG)
+            node.c_init_send(remote_file)
+            # todo in socket_node
+            print("nfs read exist")
+        node.close()
+        # done
+        self._close()
     def _exchange_metadata(self, node: SocketNode):
         buffer_attr_bytes = serialize(node.buffer_attr)
         self.socket.sendall(buffer_attr_bytes)

@@ -36,12 +36,20 @@ class HandleServer(socketserver.BaseRequestHandler):
                     conn.sendall(buffer_attr_bytes)
                     # exchange metadata done
                     # node.poll_cq()
+                # elif msg == m.FORWARD_FILE_MSG:
+                #     node.p_receive_send()
+                #     print("receive client send")
+                    
                 elif msg == m.PUSH_FILE_MSG:
                     node.s_save_file()
                     print("success save file")
                 elif msg == m.PULL_FILE_MSG:
                     node.s_push_file()
                     print("success server push file")
+                elif msg == m.SEND_FILE_MSG:
+                    print("start to read file")
+                    node.s_receive_send()
+                    print("success write file to client")
                 elif msg == m.DONE_MSG:
                     print("done")
                     node.close()
@@ -55,7 +63,7 @@ class HandleServer(socketserver.BaseRequestHandler):
 
 # connection establish use socket, then use ibv to rdma
 class SocketServer:
-    def __init__(self, name=c.NAME, addr=c.ADDR, port=c.PORT_INT, options=c.OPTIONS):
+    def __init__(self, name=c.NAME, addr=c.ADDR_SERVER, port=c.PORT_INT, options=c.OPTIONS):
         self.server = socketserver.ThreadingTCPServer((addr, port,), HandleServer)
         print("listening in", addr, port)
         self.name = name
