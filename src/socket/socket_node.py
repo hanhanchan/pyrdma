@@ -17,7 +17,7 @@ from pyverbs.device import Context
 from pyverbs.mr import MR
 from pyverbs.pd import PD
 from src.common.buffer_attr import deserialize, serialize
-
+import pickle
 class SocketNode:
     def __init__(self, name, options=c.OPTIONS):
         self.name = name
@@ -96,7 +96,7 @@ class SocketNode:
         return self
 
     # poll cq
-    def poll_cq(self, poll_count=1, debug=True):
+    def poll_cq(self, poll_count=1, debug=False):
         self.cq.req_notify()
         npolled = 0
         wc_list = []
@@ -255,65 +255,203 @@ class SocketNode:
             self.file_attr.close()
         else:
             print("server file error")
-    def p_receive_send(self):
+    def p_receive_send(self): # proxy-dst, origin proxy server
+        #origin server 
         self.post_recv(self.file_mr)
         self.post_send(self.msg_mr, m.FILE_BEGIN_MSG)
         self.poll_cq()  # post send
         wc = self.poll_cq()[0]  # post recv
-        print("receive opcode ="+str(wc.opcode))
-        
+        # print("receive opcode ="+str(wc.opcode))
+        # print("this is "+str(self.file_mr))
+        # print("use client "+str(c_node.file_mr))
+ 
+
         if wc.opcode == e.IBV_WC_RECV:
             # passive push file
             # size = wc.imm_data
-            file_name=c.FILE_NAME
-            remote_meta = deserialize(self.file_mr.read(c.BUFFER_META_SIZE, 0))
-            print(remote_meta)
-            loacal_meta= serialize(self.buffer_key_attr) #file 
-            self.post_send(self.msg_mr, loacal_meta)
+            content = self.file_mr.read(c.BUFFER_META_SIZE, 0)
+        return content
+            # c_node.post_recv(c_node.recv_mr)
+            # c_node.post_recv(c_node.file_mr)
+            # c_node.post_send(c_node.msg_mr, m.SEND_FILE_MSG)
+            # c_node.poll_cq()
+            # while not self.file_attr.is_done():
+            #     wc = c_node.poll_cq()[0]
+            #     print("proxy and server communication")
+            #     # if wc.opcode == e.IBV_WR_RDMA_WRITE:
+            #     #     file_stream =c_node.file_mr.read(c.FILE_SIZE,0)
+            #     #     size = len(file_stream)
+            #     #     self.post_write(self.file_mr, file_stream, size,
+            #     #             server_meta.remote_stag, server_meta.remote_meta.addr,
+            #     #             opcode=e.IBV_WR_RDMA_WRITE)
+            #     # self.post_recv(self.recv_mr)
+            #     if wc.opcode & e.IBV_WC_RECV:
+            #         # self.post_recv(self.recv_mr)
+            #         msg = c_node.recv_mr.read(c.BUFFER_SIZE, 0)
+            #         if utils.check_msg(msg, m.FILE_BEGIN_MSG):      
+            #             c_node.post_write(self.file_mr, remote_data, len(remote_data),
+            #             client_meta.server_metadata_attr.remote_stag, client_meta.server_metadata_attr.addr,
+            #                 opcode=e.IBV_WR_RDMA_WRITE_WITH_IMM, imm_data=len(remote_data))
+            #         # if utils.check_msg(msg, m.FILE_DONE_MSG):
+            #         #     print("file done")
+            #         #     # done
+            #         #     self.file_attr.done()
+                        
+            # self.file_attr.close()
+
+    def p_receive_client(self):
+        self.post_recv(self.file_mr)
+        self.post_send(self.msg_mr, m.FILE_BEGIN_MSG)
+        self.poll_cq()  # post send
+        wc = self.poll_cq()[0]  # post recv
+        #print("receive opcode ="+str(wc.opcode))
+        
+        if wc.opcode == e.IBV_WC_RECV:
+            content=self.file_mr.read(c.BUFFER_META_SIZE, 0)
+        return content 
+    def send_for_meta(self,content):
+ 
+        self.poll_cq()  # post recv
+        msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
+        if utils.check_msg(msg, m.FILE_BEGIN_MSG):
             self.post_recv(self.file_mr)
+            self.post_send(self.msg_mr,content)
+            self.poll_cq()  # post send
+            while not self.file_attr.is_done():
+                wc = self.poll_cq()[0]  # post recv
+                if wc.opcode == e.IBV_WC_RECV:
+                    new_content=self.file_mr.read(c.BUFFER_META_SIZE, 0)
+                    #print(pickle.loads(new_content))
+                    self.file_attr.done()
+        # new_file=pickle.loads(new_content)
+        ##switch knows choose which server 
+        return new_content
+    def send_for_file(self,content):
+        file_stream_pool=[]
+        self.poll_cq()  # post recv
+        msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
+        if utils.check_msg(msg, m.FILE_BEGIN_MSG):
+            self.post_recv(self.file_mr)
+            self.post_send(self.msg_mr,content)
+            # self.poll_cq() 
+            count=0
             while not self.file_attr.is_done():
                 wc = self.poll_cq()[0]
-                if wc.opcode == e.IBV_WR_RDMA_WRITE:
-                    file_stream =self.file_mr.read(c.FILE_SIZE,0)
-                    size = len(file_stream)
-                    self.post_write(self.file_mr, file_stream, size,
-                            remote_meta.rkey, remote_meta.addr,
-                            opcode=e.IBV_WR_RDMA_WRITE)
-                    self.file_attr.done()
-            self.post_recv(self.recv_mr)
+ 
+                if wc.opcode == e.IBV_WC_RECV_RDMA_WITH_IMM:
+                   # print("## receive file!")
+                    file_stream= self.file_mr.read(c.FILE_SIZE, 0)
+                    #print("receive file stream with size "+str(len(file_stream)))
+                    size = wc.imm_data
+                    if size!=0:
+                        if c.is_control_plane==True:
+                            file_stream_pool.append(file_stream)
+                        self.post_recv(self.file_mr)
+                        self.post_send(self.msg_mr, m.FILE_NEXT_MSG) 
+                    #repost 
+                    # count=count+1
+                    # if count<2:
+                    #     self.post_recv(self.file_mr)
+                    #     self.post_send(self.msg_mr, m.FILE_NEXT_MSG)
+                    #     self.poll_cq()
+                    # else:
+                    #     print("file done ")
+                    #     self.file_attr.done()
+ 
+                    #     self.post_send(self.msg_mr, m.FILE_NEXT_MSG)
+                    #     self.poll_cq()
+ 
+                    # self.poll_cq()
+                        
+                # if utils.check_msg(self.file_mr.read(c.FILE_SIZE, 0), m.FILE_END_MSG):
+                #     # print("receive server's response!")
+ 
+                #     print("file done")
+                #     # done
+                #     self.post_send(self.msg_mr, m.FILE_DONE_MSG)
+                #     self.file_attr.done()
+                # if wc.opcode & e.IBV_WC_RECV:
+                #     # print(wc.opcode)
+                     
+                #     msg = self.file_mr.read(c.FILE_SIZE, 0)
+                #     self.post_recv(self.file_mr)
+                #     # print(msg.decode("UTF-8", "ignore").strip("\x00").encode())
+                #     if utils.check_msg(msg,  m.FILE_END_MSG):
+                    else:
+                        # self.post_send(self.msg_mr, m.FILE_DONE_MSG)
+
+                        #print("file end msg!")
+                        self.file_attr.done()
 
 
-            try:
-                self.file_attr.open(file_name)
-            except OSError as err:
-                self.post_send(self.msg_mr, m.FILE_ERR_MSG)
-                return
-            self.file_attr.file_name = file_name
-            file_stream = self.file_attr.fd.read(c.FILE_SIZE)
-            size = len(file_stream)
-            #def post_write(self, mr: MR, data, length, rkey, remote_addr, opcode=e.IBV_WR_RDMA_WRITE, imm_data=0)
-            self.post_write(self.file_mr, file_stream, size,
-                            remote_meta.remote_stag, remote_meta.addr,
-                            opcode=e.IBV_WR_RDMA_WRITE)
-            print("write to client")
-        self.post_recv(self.recv_mr)
+
+            return file_stream_pool    
+
+
+    def p_trans_write(self,server_metda,content):
+        self.poll_cq()  # post recv
+        msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
+        if utils.check_msg(msg, m.FILE_BEGIN_MSG):
+ 
+            self.post_write(self.file_mr, content, len(content),
+                        server_metda.remote_stag, server_metda.addr,
+                            opcode=e.IBV_WR_RDMA_WRITE_WITH_IMM, imm_data=10)
+            # print("switch sends to server")
+        self.post_recv(self.file_mr)
         while not self.file_attr.is_done():
             wc = self.poll_cq()[0]
-            if wc.opcode & e.IBV_WC_RECV:
-                # self.post_recv(self.recv_mr)
-                msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
-                if utils.check_msg(msg, m.FILE_DONE_MSG):
-                    print("file done")
-                    # done
-                    self.file_attr.done()
-        self.file_attr.close()
+            if wc.opcode == e.IBV_WC_RECV_RDMA_WITH_IMM:
+                self.post_send(self.msg_mr, m.FILE_DONE_MSG)
+                file_stream= self.file_mr.read(c.BUFFER_META_SIZE, 0)
+ 
+                # print("receive server's response!")
+                self.file_attr.done()
+        return file_stream
+    def p_return_write(self,file_stream_pool,client_meta):
+ 
+        self.post_recv(self.recv_mr)
+        for file_stream in range(len(file_stream_pool)):
+            #todo: update pre-post in client 
+            if file_stream<len(file_stream_pool)-1:
+                imm=10
+            else:
+                imm=0
+            self.post_write(self.file_mr, file_stream_pool[file_stream], len(file_stream_pool[file_stream]),
+                            client_meta.remote_stag, client_meta.addr,
+                                opcode=e.IBV_WR_RDMA_WRITE_WITH_IMM, imm_data=imm)
+            #last one do not need client's signal
+            if file_stream<len(file_stream_pool)-1:
+                flag=False
+                while flag==False:
+                    wc = self.poll_cq()[0]
+                    if wc.opcode & e.IBV_WC_RECV:
+                    # self.post_recv(self.recv_mr)
+                        msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
+                        if utils.check_msg(msg, m.FILE_NEXT_MSG):
+                            flag=True
+                            self.post_recv(self.recv_mr)
+                    
+             
+        #print("return content to client")
+        # self.post_recv(self.recv_mr)
+        # self.post_send(self.msg_mr, m.FILE_END_MSG)
+        # while not self.file_attr.is_done():
+        #     wc = self.poll_cq()[0]
+    
+        #     if wc.opcode & e.IBV_WC_RECV:
+        #         msg = self.recv_mr.read(c.BUFFER_SIZE, 0)
+        #         if utils.check_msg(msg, m.FILE_DONE_MSG): 
+        #             # print("switch function completes!")
+        #             self.file_attr.done()
+
+        
 
     def s_receive_send(self):
         self.post_recv(self.file_mr)
         self.post_send(self.msg_mr, m.FILE_BEGIN_MSG)
         self.poll_cq()  # post send
         wc = self.poll_cq()[0]  # post recv
-        print("receive opcode ="+str(wc.opcode))
+        #print("receive opcode ="+str(wc.opcode))
         if wc.opcode == e.IBV_WC_RECV:
             # passive push file
             # size = wc.imm_data
