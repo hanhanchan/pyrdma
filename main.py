@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-from src.rdma.socket.rdma_socket_client import RdmaSocketClient
-from src.rdma.socket.rdma_socket_server import RdmaSocketServer
-import src.config.config as cfg
-from src.socket.client import SocketClient
-from src.socket.server import SocketServer
-from src.socket.proxy import SocketProxy
 import argparse
+
+from src.socket.client import SocketClient
+from src.socket.proxy import SocketProxy
+from src.socket.server import SocketServer
 
 serverforclient_node = []
 
@@ -26,14 +24,15 @@ def parse_args():
 
 if __name__ == "__main__":
     # or multiple clients?
-    args =  parse_args()
-    if args.s==1:
-        s = SocketServer()
-        s.serve()
-    if args.s==2:
-        s = SocketProxy()
-        s.serve()
-    if args.c==1:
+    args = parse_args()
+    if args.c == 0:
+        if args.s == 1:
+            s = SocketServer()
+            s.serve()
+        if args.s == 2:
+            s = SocketProxy()
+            s.serve()
+    else:
         c = SocketClient()
         c.new_pull_file("test/test.txt")
 
