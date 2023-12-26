@@ -236,7 +236,7 @@ class HandleServer(socketserver.BaseRequestHandler):
 
 
 # connection establish use socket, then use ibv to rdma
-class SocketServer:
+class SocketProxy:
     def __init__(self, name=c.NAME, addr=c.ADDR_PROXY, port=c.PORT_INT, options=c.OPTIONS):
         self.server = socketserver.ThreadingTCPServer((addr, port,), HandleServer)
 
@@ -246,4 +246,3 @@ class SocketServer:
 
     def serve(self):
         self.server.serve_forever()
-
