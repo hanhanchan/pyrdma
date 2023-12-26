@@ -1,8 +1,11 @@
 import pyverbs.enums as e
+
 ##proxy
-ADDR_SERVER  = "192.168.56.10"
-ADDR_CLIENT_1  = "192.168.56.3"
-ADDR_CLIENT_2 = "192.168.56.4"
+ADDR_SERVER = "10.10.1.4"
+ADDR_PROXY_TO = "10.10.1.4"
+ADDR_PROXY = "10.10.1.3"
+ADDR_CLIENT_TO = "10.10.1.3"
+
 ##server 
 ##server2
 ##client

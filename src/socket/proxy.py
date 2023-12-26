@@ -27,7 +27,7 @@ egress_port = 1
 
 
 class SocketClient:
-    def __init__(self, name=c.NAME, addr=c.ADDR_CLIENT, port=c.PORT_INT, options=c.OPTIONS):
+    def __init__(self, name=c.NAME, addr=c.ADDR_PROXY_TO, port=c.PORT_INT, options=c.OPTIONS):
         self.name = name
         self.addr = addr
         self.port = port
@@ -74,7 +74,7 @@ class SocketClient:
 
 class CreateControl():
     def __init__(self):
-        if c.is_control_plane != True:
+        if c.is_control_plane == True:
             global threading_index
             self.p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
             self.s1 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
@@ -186,7 +186,7 @@ class HandleServer(socketserver.BaseRequestHandler):
                     conn.sendall(buffer_attr_bytes)
                     # exchange metadata done
                     # node.poll_cq()
-                    if c.is_control_plane != True:
+                    if c.is_control_plane == True:
                         # from switch to client
                         proxy_ip_addr = "192.168.56.3"
                         client_ip_addr = "192.168.56.2"
@@ -219,7 +219,7 @@ class HandleServer(socketserver.BaseRequestHandler):
                     self.client.node.post_recv(self.client.node.recv_mr)
                     self.client.socket.sendall(m.SEND_FILE_MSG)
                     print("-----------send to servers--------")
-                    file_stream = self.client.node.p_trans_write(self.client.server_metadata_attr, content)
+                    file_stream = self.client.node.p_trans_send(self.client.server_metadata_attr, content)
                     # print(file_stream)
                     # node.p_return_write(file_stream,self.client_metadata_attr)
                     # s.node,s.client_metadata_attr,c.node,c.server_metadata_attr
@@ -237,7 +237,7 @@ class HandleServer(socketserver.BaseRequestHandler):
 
 # connection establish use socket, then use ibv to rdma
 class SocketServer:
-    def __init__(self, name=c.NAME, addr=c.ADDR_SERVER, port=c.PORT_INT, options=c.OPTIONS):
+    def __init__(self, name=c.NAME, addr=c.ADDR_PROXY, port=c.PORT_INT, options=c.OPTIONS):
         self.server = socketserver.ThreadingTCPServer((addr, port,), HandleServer)
 
         print("listening in", addr, port)

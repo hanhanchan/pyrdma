@@ -1,15 +1,16 @@
 import socket
+
+import src.common.msg as m
 # config
 import src.config.config as c
+from src.common.buffer_attr import serialize, deserialize
 # common
 from src.common.utils import print_info
-import src.common.msg as m
 from src.socket.socket_node import SocketNode
-from src.common.buffer_attr import serialize, deserialize
 
 
 class SocketClient:
-    def __init__(self, name=c.NAME, addr=c.ADDR_CLIENT, port=c.PORT_INT, options=c.OPTIONS):
+    def __init__(self, name=c.NAME, addr=c.ADDR_CLIENT_TO, port=c.PORT_INT, options=c.OPTIONS):
         self.name = name
         self.addr = addr
         self.port = port
