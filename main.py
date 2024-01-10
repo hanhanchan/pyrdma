@@ -26,11 +26,11 @@ def parse_args():
 if __name__ == "__main__":
     # or multiple clients?
     args = parse_args()
-    if args['c'] == 0:
-        if args['s'] == 1:
+    if args['client'] == 0:
+        if args['server'] == 1:
             s = SocketServer()
             s.serve()
-        elif args['s'] == 2:
+        elif args['server'] == 2:
             s = SocketProxy()
             s.serve()
     else:
