@@ -18,8 +18,8 @@ def read_file(file_path):
 threading_list = ["t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10"]
 def parse_args():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-s', '--server type', type=int)
-    arg_parser.add_argument('-c', '--client number', type=int)
+    arg_parser.add_argument('-s', '--server', type=int)
+    arg_parser.add_argument('-c', '--client', type=int)
     return vars(arg_parser.parse_args())
 
 
