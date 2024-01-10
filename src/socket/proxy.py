@@ -5,8 +5,8 @@ import socketserver
 
 # Import P4Runtime lib from parent utils dir
 # Probably there's a better way of doing this.
-import p4runtime_lib.bmv2
-import p4runtime_lib.helper
+# import p4runtime_lib.bmv2
+# import p4runtime_lib.helper
 import src.common.msg as m
 # config
 import src.config.config as c
@@ -72,80 +72,80 @@ class SocketClient:
         self.socket.close()
 
 
-class CreateControl():
-    def __init__(self):
-        if c.is_control_plane == True:
-            global threading_index
-            self.p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
-            self.s1 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
-                name='s1',
-                address='192.168.56.10:50051',
-                device_id=1,
-                proto_dump_file='logs/s1-p4runtime-requests.txt')
-            self.s1.MasterArbitrationUpdate()
-            self.s1.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
-                                                bmv2_json_file_path=bmv2_file_path)
-            print("Installed P4 Program using SetForwardingPipelineConfig on s1")
-
-    def writeQPrules(self, client_ip, to_client_qp, index):
-        # 1) match server B, rewrite dst from server A to client
-        table_entry = self.p4info_helper.buildTableEntry(
-            table_name="MyIngress.record_port",
-            match_fields={
-
-                "hdr.ipv4.dst_addr": (client_ip, 32),
-                "hdr.ib_bth.dst_qp": to_client_qp,
-                # "hdr.ib_bth.opcode": opcode,
-            },
-            action_name="MyIngress.record_switch_port",
-            action_params={
-                "index": index,
-            }
-        )
-        self.s1.WriteTableEntry(table_entry)
-        print("Installed ingress QP rule on %s" % self.s1.name)
-
-    def writeIPRules(self, rfile_ip_addr, rproxy_ip_addr, rclient_ip_addr, rproxy_mac, rclient_mac, to_proxy_qp,
-                     to_client_qp, index, eport):
-        # 1) match server B, rewrite dst from server A to client
-        table_entry = self.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm",
-            match_fields={
-                "hdr.ipv4.src_addr": (rfile_ip_addr, 32),
-                "hdr.ib_bth.dst_qp": to_proxy_qp,
-                # "hdr.ib_bth.opcode": opcode,
-            },
-            action_name="MyIngress.ipv4_forward",
-            action_params={
-                "switch_ip": rproxy_ip_addr,
-                "host_ip": rclient_ip_addr,
-                "switch_mac": rproxy_mac,
-                "host_mac": rclient_mac,
-                "client_qp": to_client_qp,
-                "port_index": index,
-                "port": eport,
-            })
-        self.s1.WriteTableEntry(table_entry)
-        print("Installed ingress tunnel rule on %s" % self.s1.name)
-
-    def writeTunnelRules(self, rclient_address, rclient_qp, rkey, raddr):
-        # 1) match server B, rewrite dst from server A to client
-        table_entry = self.p4info_helper.buildTableEntry(
-            table_name="MyEgress.rdma_translate",
-            match_fields={
-                "hdr.ipv4.dst_addr": (rclient_address, 32),
-                "hdr.ib_bth.dst_qp": rclient_qp,
-            },
-            action_name="MyEgress.translate",
-            action_params={
-                "mount_raddr": raddr,
-                "mount_rkey": rkey
-            })
-        self.s1.WriteTableEntry(table_entry)
-        print("Installed egress translate rule on %s" % self.s1.name)
-
-
-p4control = CreateControl()
+# class CreateControl():
+#     def __init__(self):
+#         if c.is_control_plane == True:
+#             global threading_index
+#             self.p4info_helper = p4runtime_lib.helper.P4InfoHelper(p4info_file_path)
+#             self.s1 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
+#                 name='s1',
+#                 address='192.168.56.10:50051',
+#                 device_id=1,
+#                 proto_dump_file='logs/s1-p4runtime-requests.txt')
+#             self.s1.MasterArbitrationUpdate()
+#             self.s1.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
+#                                                 bmv2_json_file_path=bmv2_file_path)
+#             print("Installed P4 Program using SetForwardingPipelineConfig on s1")
+#
+#     def writeQPrules(self, client_ip, to_client_qp, index):
+#         # 1) match server B, rewrite dst from server A to client
+#         table_entry = self.p4info_helper.buildTableEntry(
+#             table_name="MyIngress.record_port",
+#             match_fields={
+#
+#                 "hdr.ipv4.dst_addr": (client_ip, 32),
+#                 "hdr.ib_bth.dst_qp": to_client_qp,
+#                 # "hdr.ib_bth.opcode": opcode,
+#             },
+#             action_name="MyIngress.record_switch_port",
+#             action_params={
+#                 "index": index,
+#             }
+#         )
+#         self.s1.WriteTableEntry(table_entry)
+#         print("Installed ingress QP rule on %s" % self.s1.name)
+#
+#     def writeIPRules(self, rfile_ip_addr, rproxy_ip_addr, rclient_ip_addr, rproxy_mac, rclient_mac, to_proxy_qp,
+#                      to_client_qp, index, eport):
+#         # 1) match server B, rewrite dst from server A to client
+#         table_entry = self.p4info_helper.buildTableEntry(
+#             table_name="MyIngress.ipv4_lpm",
+#             match_fields={
+#                 "hdr.ipv4.src_addr": (rfile_ip_addr, 32),
+#                 "hdr.ib_bth.dst_qp": to_proxy_qp,
+#                 # "hdr.ib_bth.opcode": opcode,
+#             },
+#             action_name="MyIngress.ipv4_forward",
+#             action_params={
+#                 "switch_ip": rproxy_ip_addr,
+#                 "host_ip": rclient_ip_addr,
+#                 "switch_mac": rproxy_mac,
+#                 "host_mac": rclient_mac,
+#                 "client_qp": to_client_qp,
+#                 "port_index": index,
+#                 "port": eport,
+#             })
+#         self.s1.WriteTableEntry(table_entry)
+#         print("Installed ingress tunnel rule on %s" % self.s1.name)
+#
+#     def writeTunnelRules(self, rclient_address, rclient_qp, rkey, raddr):
+#         # 1) match server B, rewrite dst from server A to client
+#         table_entry = self.p4info_helper.buildTableEntry(
+#             table_name="MyEgress.rdma_translate",
+#             match_fields={
+#                 "hdr.ipv4.dst_addr": (rclient_address, 32),
+#                 "hdr.ib_bth.dst_qp": rclient_qp,
+#             },
+#             action_name="MyEgress.translate",
+#             action_params={
+#                 "mount_raddr": raddr,
+#                 "mount_rkey": rkey
+#             })
+#         self.s1.WriteTableEntry(table_entry)
+#         print("Installed egress translate rule on %s" % self.s1.name)
+#
+#
+# p4control = CreateControl()
 
 
 class HandleServer(socketserver.BaseRequestHandler):
@@ -221,9 +221,9 @@ class HandleServer(socketserver.BaseRequestHandler):
                     print("-----------send to servers--------")
                     file_stream = self.client.node.p_trans_send(self.client.server_metadata_attr, content)
                     # print(file_stream)
-                    # node.p_return_write(file_stream,self.client_metadata_attr)
+                    node.p_return_write(file_stream, self.client_metadata_attr)
                     # s.node,s.client_metadata_attr,c.node,c.server_metadata_attr
-                    # print("success write file to client")
+                    print("success write file to client")
                 elif msg == m.DONE_MSG:
                     print("done")
                     node.close()
